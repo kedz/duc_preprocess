@@ -1,0 +1,8 @@
+Set environmental variable DUC2001_ORIGINAL to point to the file called:
+DUC2001_Summarization_Documents.tgz
+You should have received this file in an email from NIST.
+
+Do not untar DUC2001 official data. I had to rename some files do to errors in the original duc data.
+Single doc scripts does not create data for FBIS documents since these are very different in style and format from the other documents.
+There are only a handful of FBIS documents so this shouldn't be a big deal.
+Also for some reason, FT934-10911 does not have a single doc summary in the original summaries data so I skipped it.
