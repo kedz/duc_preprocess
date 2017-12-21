@@ -10,9 +10,12 @@ def get_normalized_sentences(text, port):
     ns = []
     for sentence_data in data["sentences"]:
         tokens = [token["originalText"] for token in sentence_data["tokens"]]
-        ns.append(" ".join(tokens))
+        pretty_text = "".join([token["before"] + token["originalText"] 
+                               for token in sentence_data["tokens"]]).strip()
+        pretty_text = re.sub(r"\n|\t", r" ", pretty_text)
+        pretty_text = re.sub(r"\s+", r" ", pretty_text)
+        ns.append({"tokens": tokens, "text": pretty_text})
     return ns    
-
 
 def parse_perdocs_xml(path, port):
 

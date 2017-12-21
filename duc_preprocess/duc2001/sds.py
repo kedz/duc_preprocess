@@ -107,7 +107,8 @@ def make_train_data_from_release_data(root_path, output_root_path, port):
                  "doc_id": key[1],
                  "date": datestr,
                  "sentence_id": s,
-                 "text": sentence})
+                 "text": sentence["text"],
+                 "tokens": sentence["tokens"]})
         
         input_path = os.path.join(
             train_inputs_dir, "{}.{}.input.json".format(key[0], key[1]))
@@ -169,7 +170,8 @@ def make_test_data_from_release_data(root_path, output_root_path, port):
                  "doc_id": key[1],
                  "date": datestr,
                  "sentence_id": s,
-                 "text": sentence})
+                 "text": sentence["text"],
+                 "tokens": sentence["tokens"]})
         
         input_path = os.path.join(
             test_inputs_dir, "{}.{}.input.json".format(key[0], key[1]))
