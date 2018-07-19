@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 
+
 def get_normalized_sentences(text, nlp):
     text = re.sub(r"\r|\t", " ", text)
     text = re.sub(r"\s+", " ", text.strip())
@@ -26,7 +27,7 @@ def parse_perdocs_xml(path, nlp):
     with open(path, "r") as fp:
         xml = fp.read()
 
-    header_patt = r'<SUM.*?TYPE="PERDOC"\s+SIZE="(.*?)"\s+DOCREF="(.*?)"' \
+    header_patt = r'<SUM.*?TYPE="PERDOC"\s+SIZE="(.*?)"\s+DOCREF="\s*(.*?)"' \
         '\s+SELECTOR="(.*?)"\s+SUMMARIZER="(.*?)"\s*>'
     summary_patt = header_patt + r'(.*?)</SUM>'
 
@@ -37,7 +38,6 @@ def parse_perdocs_xml(path, nlp):
     for match in re.findall(summary_patt, xml, flags=re.DOTALL):
         size, doc_id, selector, summarizer, summary_text = match
         size = int(size)
-        doc_id = doc_id.strip()
         sentences = get_normalized_sentences(summary_text, nlp)
         data[doc_id] = {"input_ids": [doc_id], "sentences": sentences,
                         "selector": selector, "summarizer": summarizer,
@@ -47,11 +47,13 @@ def parse_perdocs_xml(path, nlp):
         raise Exception("Error in summary xml {}".format(path))
     return data
 
+
 def parse_mds_xml(path, nlp):
     SUM_PATT = r'<SUM.*?TYPE="MULTI"\s+SIZE="(.*?)"\s+DOCREF="(.*?)"\s+SELECTOR="(.*?)"\s+SUMMARIZER="(.*?)"\s*>(.*?)</SUM>'
 
     with open(path, "r") as fp:
         xml = fp.read()
+
     match = re.search(SUM_PATT, xml, flags=re.DOTALL)
     
     if match is None:
@@ -67,22 +69,20 @@ def parse_mds_xml(path, nlp):
             "selector": selector,
             "sentences": sentences,
             "size": size}
-     
 
 def parse_input_docs(paths, nlp):
     data = []
     for path in paths:
         
         _, fn = os.path.split(path)
-
-        if fn.startswith("WSJ"):
+        if fn.startswith("AP"):
+            doc_id, sentences, date = parse_ap(path, nlp)
+        elif fn.startswith("WSJ"):
             doc_id, sentences, date = parse_wsj(path, nlp)
         elif fn.startswith("SJMN"):
             doc_id, sentences, date = parse_sjmn(path, nlp)
         elif fn.startswith("FT"):
             doc_id, sentences, date = parse_ft(path, nlp)
-        elif fn.startswith("AP"):
-            doc_id, sentences, date = parse_ap(path, nlp)
         elif fn.startswith("LA"):
             doc_id, sentences, date = parse_la(path, nlp)
         elif fn.startswith("FBIS"):
@@ -90,7 +90,6 @@ def parse_input_docs(paths, nlp):
         else:
             raise Exception()
        
-        assert not isinstance(doc_id, tuple)
 
         data.append(
             {"doc_id": doc_id, "sentences": sentences, "date": date})
@@ -98,7 +97,40 @@ def parse_input_docs(paths, nlp):
     return data
 
 
+def parse_ap(path, nlp):
 
+    sentences = []
+
+    with open(path, "r") as fp:
+        xml = fp.read()
+
+    doc_id_match = re.search(
+        r"<DOCNO>\s*(AP\d\d\d\d\d\d-\d+)\s*</DOCNO>", xml, 
+        flags=re.DOTALL)
+    assert doc_id_match is not None
+    doc_id = doc_id_match.groups()[0]
+
+    date_match = re.search(
+        r"<DOCNO>\s*AP(\d\d)(\d\d)(\d\d)-\d+\s*</DOCNO>", xml, 
+        flags=re.DOTALL)
+    assert date_match is not None
+
+    year, month, day = date_match.groups()
+    year = int("19" + year)
+    month = int(month)
+    day = int(day)
+    date = datetime.date(year, month, day)
+
+    body_text_match = re.search(
+        r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL)
+    assert body_text_match is not None
+
+    for body_text in re.findall(r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL):
+        for graf in re.split(r"^   ", body_text, flags=re.MULTILINE):
+            sentences.extend(get_normalized_sentences(graf, nlp))
+    
+    return doc_id, sentences, date
+ 
 def parse_wsj(path, nlp):
 
     sentences = []
@@ -137,76 +169,7 @@ def parse_wsj(path, nlp):
     for graf in re.split(r"^   ", body_text, flags=re.MULTILINE):
         sentences.extend(get_normalized_sentences(graf, nlp))
 
-
     return doc_id, sentences, date
-
-def parse_fbis(path, nlp):
-
-    sentences = []
-
-    with open(path, "r") as fp:
-        xml = fp.read()
-
-    doc_id_match = re.search(
-        r"<DOCNO>\s*(FBIS.*?)\s*</DOCNO>", xml, flags=re.DOTALL)
-    assert doc_id_match is not None
-    doc_id = doc_id_match.groups()[0]
-
-    date_match = re.search(
-        r"<DATE1>\s*(\d+) ([A-Za-z]+) (\d\d\d\d)\s*</DATE1>", xml, 
-        flags=re.DOTALL)    
-    assert date_match is not None
-
-    day, month, year = date_match.groups()
-    year = int(year)
-    
-    if month == "Jan":
-        month = 1
-    elif month == "January":
-        month = 1
-    elif month == "Mar":
-        month = 2
-    elif month == "March":
-        month = 2
-    elif month == "Feb":
-        month = 3
-    elif month == "February":
-        month = 3
-    elif month == "Apr":
-        month = 4
-    elif month == "May":
-        month = 5
-    elif month == "Jun":
-        month = 6
-    elif month == "Jul":
-        month = 7
-    elif month == "Aug":
-        month = 8
-    elif month == "Sep":
-        month = 9
-    elif month == "Oct":
-        month = 10
-    elif month == "Nov":
-        month = 11
-    elif month == "Dec":
-        month = 12
-    else:
-        raise Exception()
-
-    day = int(day)
-    date = datetime.date(year, month, day)
-
-    body_text_match = re.search(
-        r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL)
-    assert body_text_match is not None
-    body_text = body_text_match.groups()[0]
-    body_text = re.sub(r"</?F.*?>", r" ", body_text) 
-
-    for graf in re.split(r"^  ", body_text, flags=re.MULTILINE):
-        sentences.extend(get_normalized_sentences(graf, nlp))
-
-    return doc_id, sentences, date
-
 
 def parse_la(path, nlp):
 
@@ -233,42 +196,6 @@ def parse_la(path, nlp):
             sentences.extend(get_normalized_sentences(graf, nlp))
  
     return doc_id, sentences, date
-    
-def parse_ap(path, nlp):
-
-    sentences = []
-
-    with open(path, "r") as fp:
-        xml = fp.read()
- 
-
-    doc_id_match = re.search(
-        r"<DOCNO>\s*(AP\d\d\d\d\d\d-\d+)\s*</DOCNO>", xml, 
-        flags=re.DOTALL)
-    assert doc_id_match is not None
-    doc_id = doc_id_match.groups()[0]
-
-    date_match = re.search(
-        r"<DOCNO>\s*AP(\d\d)(\d\d)(\d\d)-\d+\s*</DOCNO>", xml, 
-        flags=re.DOTALL)
-    assert date_match is not None
-
-    year, month, day = date_match.groups()
-    year = int("19" + year)
-    month = int(month)
-    day = int(day)
-    date = datetime.date(year, month, day)
-
-    body_text_match = re.search(
-        r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL)
-    assert body_text_match is not None
-
-    for body_text in re.findall(r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL):
-        for graf in re.split(r"^   ", body_text, flags=re.MULTILINE):
-            sentences.extend(get_normalized_sentences(graf, nlp))
-    
-    return doc_id, sentences, date
-    
 
 def parse_ft(path, nlp):
 
@@ -340,4 +267,71 @@ def parse_sjmn(path, nlp):
     for graf in body_text.split(";"):
         sentences.extend(get_normalized_sentences(graf, nlp))
             
+    return doc_id, sentences, date
+
+def parse_fbis(path, nlp):
+
+    sentences = []
+
+    with open(path, "r") as fp:
+        xml = fp.read()
+
+    doc_id_match = re.search(
+        r"<DOCNO>\s*(FBIS.*?)\s*</DOCNO>", xml, flags=re.DOTALL)
+    assert doc_id_match is not None
+    doc_id = doc_id_match.groups()[0]
+
+    date_match = re.search(
+        r"<DATE1>\s*(\d+) ([A-Za-z]+) (\d\d\d\d)\s*</DATE1>", xml, 
+        flags=re.DOTALL)    
+    assert date_match is not None
+
+    day, month, year = date_match.groups()
+    year = int(year)
+    
+    if month == "Jan":
+        month = 1
+    elif month == "January":
+        month = 1
+    elif month == "Mar":
+        month = 2
+    elif month == "March":
+        month = 2
+    elif month == "Feb":
+        month = 3
+    elif month == "February":
+        month = 3
+    elif month == "Apr":
+        month = 4
+    elif month == "May":
+        month = 5
+    elif month == "Jun":
+        month = 6
+    elif month == "Jul":
+        month = 7
+    elif month == "Aug":
+        month = 8
+    elif month == "Sep":
+        month = 9
+    elif month == "Oct":
+        month = 10
+    elif month == "Nov":
+        month = 11
+    elif month == "Dec":
+        month = 12
+    else:
+        raise Exception()
+
+    day = int(day)
+    date = datetime.date(year, month, day)
+
+    body_text_match = re.search(
+        r"<TEXT>(.*?)</TEXT>", xml, flags=re.DOTALL)
+    assert body_text_match is not None
+    body_text = body_text_match.groups()[0]
+    body_text = re.sub(r"</?F.*?>", r" ", body_text) 
+
+    for graf in re.split(r"^  ", body_text, flags=re.MULTILINE):
+        sentences.extend(get_normalized_sentences(graf, nlp))
+
     return doc_id, sentences, date

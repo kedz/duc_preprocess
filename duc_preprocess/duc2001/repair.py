@@ -2,15 +2,15 @@ import argparse
 import re
 import os
 from . import document_parser
-import simple_cnlp
+import spacy
 
 
-def fix_missing_summary_final_tag(release_path, port):
+def fix_missing_summary_final_tag(release_path, nlp):
     path1 = os.path.join(
         release_path, "data", "test", "duplicate.summaries", "d43hc", "100")
     msg_template = "Could not find summary xml tag for file: {}"
     try:
-        summary_data = document_parser.parse_mds_xml(path1, port)
+        summary_data = document_parser.parse_mds_xml(path1, nlp)
         print("Correctly parsed {}".format(path1))
     except Exception as e:
         if str(e) == msg_template.format(path1):
@@ -252,9 +252,12 @@ def remove_summary_with_missing_document(release_path):
     else:
         print("Already removed bad summary in {}".format(path3))
 
-def run_repairs(release_data_path, port):
-    fix_missing_summary_final_tag(release_data_path, port)
-    fix_broken_summary_final_tag(release_data_path, port)
+def run_repairs(release_data_path, nlp=None):
+    if nlp is None:
+        nlp = spacy.load('en', parser=False, tagger=False, entity=False)
+        
+    fix_missing_summary_final_tag(release_data_path, nlp)
+    fix_broken_summary_final_tag(release_data_path, nlp)
     remove_duplicate_file(release_data_path)
     fix_summary_docref_listing(release_data_path)
     remove_summary_with_missing_document(release_data_path)
@@ -262,11 +265,9 @@ def run_repairs(release_data_path, port):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--release-data", type=str, required=True)
-    parser.add_argument("--corenlp-port", type=int, default=9000)
     args = parser.parse_args()
 
-    with simple_cnlp.Session(port=args.corenlp_port) as session: 
-        run_repairs(args.release_data, args.corenlp_port)
+    run_repairs(args.release_data)
 
 if __name__ == "__main__":
     main()

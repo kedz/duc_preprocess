@@ -7,7 +7,7 @@ from .repair import run_repairs
 from .sds import extract_sds_data
 
 
-def preprocess_sds(output_directory, nist_data_path=None, cnlp_port=9000):
+def preprocess_sds(output_directory, nist_data_path=None):
     '''
     Preprocess DUC 2001 single document summarization data.
     Gathers documents and multiple 100 word human reference abstracts.
@@ -32,11 +32,9 @@ def preprocess_sds(output_directory, nist_data_path=None, cnlp_port=9000):
         
         workspace = os.path.join(tmpdir, "DUC2001_Summarization_Documents")
 
-        with simple_cnlp.Session(port=cnlp_port) as session: 
-            run_repairs(workspace, cnlp_port)
-            print("Writing duc 2001 sds data to {} ...".format(
-                output_directory))
-            extract_sds_data(workspace, output_directory, cnlp_port)
+        run_repairs(workspace)
+        print("Writing duc 2001 sds data to {} ...".format(output_directory))
+        extract_sds_data(workspace, output_directory)
     
     finally:
         shutil.rmtree(tmpdir)

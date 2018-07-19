@@ -3,10 +3,10 @@ import re
 import json
 import argparse
 from . import document_parser
-import simple_cnlp
+import spacy
 
 
-def get_training_summaries(docset_ids, release_path, port):
+def get_training_summaries(docset_ids, release_path, nlp):
     id2summary = {}
     for docset_id in docset_ids:
         docset_path = os.path.join(
@@ -18,7 +18,7 @@ def get_training_summaries(docset_ids, release_path, port):
         summary_path = os.path.join(
             docset_path, summary_id, "perdocs")
         
-        summaries = document_parser.parse_perdocs_xml(summary_path, port)
+        summaries = document_parser.parse_perdocs_xml(summary_path, nlp)
         print("Found {} summaries for docset {} ...".format(
             len(summaries), docset_id))    
 
@@ -28,7 +28,7 @@ def get_training_summaries(docset_ids, release_path, port):
 
     return id2summary
 
-def get_test_summaries(docset_ids, release_path, port):
+def get_test_summaries(docset_ids, release_path, nlp):
 
     orig_summary_path = os.path.join(
         release_path, "data", "test", "original.summaries")
@@ -52,7 +52,7 @@ def get_test_summaries(docset_ids, release_path, port):
             if not os.path.exists(orig_summary_path):
                 continue
             summary_data = document_parser.parse_perdocs_xml(
-                orig_summary_path, port)
+                orig_summary_path, nlp)
             for doc_id, summary in summary_data.items():
                 assert (docset_id, doc_id) not in id2summary
                 summary["docset_id"] = docset_id
@@ -64,7 +64,7 @@ def get_test_summaries(docset_ids, release_path, port):
             if not os.path.exists(dupl_summary_path):
                 continue
             summary_data = document_parser.parse_perdocs_xml(
-                dupl_summary_path, port)
+                dupl_summary_path, nlp)
             for doc_id, summary in summary_data.items():
                 summary["docset_id"] = docset_id
                 if (docset_id, doc_id) not in id2summary:
@@ -77,7 +77,7 @@ def get_test_summaries(docset_ids, release_path, port):
 
     return id2summary
 
-def make_train_data_from_release_data(root_path, output_root_path, port):
+def make_train_data_from_release_data(root_path, output_root_path, nlp):
 
     docset_ids = get_docset_ids_from_dir(
         os.path.join(root_path, "data", "training"))
@@ -90,9 +90,9 @@ def make_train_data_from_release_data(root_path, output_root_path, port):
 
     print("Reading training summaries...")
     id2summary = get_training_summaries(
-        docset_ids, root_path, port)
+        docset_ids, root_path, nlp)
    
-    docs = get_training_inputs(docset_ids, root_path, port)
+    docs = get_training_inputs(docset_ids, root_path, nlp)
 
     for key, summaries in id2summary.items():
         print(key)
@@ -108,6 +108,8 @@ def make_train_data_from_release_data(root_path, output_root_path, port):
                  "date": datestr,
                  "sentence_id": s,
                  "text": sentence["text"],
+                 "pos": sentence["pos"],
+                 "ne": sentence["ne"],
                  "tokens": sentence["tokens"]})
         
         input_path = os.path.join(
@@ -126,7 +128,7 @@ def make_train_data_from_release_data(root_path, output_root_path, port):
 
     return
 
-def get_training_inputs(docset_ids, root_path, port):
+def get_training_inputs(docset_ids, root_path, nlp):
 
     docs = {}
     for docset_id in docset_ids:
@@ -134,14 +136,14 @@ def get_training_inputs(docset_ids, root_path, port):
             root_path, "data", "training", docset_id, "docs")
         paths = [os.path.join(docset_dir, fn) 
                  for fn in os.listdir(docset_dir)]
-        docset_docs = document_parser.parse_input_docs(paths, port)
+        docset_docs = document_parser.parse_input_docs(paths, nlp)
         for doc in docset_docs:
             docs[(docset_id, doc["doc_id"])] = doc
         print("Found {} docs for docset {}".format(
             len(docset_docs), docset_id))
     return docs
 
-def make_test_data_from_release_data(root_path, output_root_path, port):
+def make_test_data_from_release_data(root_path, output_root_path, nlp):
 
     docset_ids = get_docset_ids_from_dir(
         os.path.join(root_path, "data", "test", "docs"))
@@ -153,9 +155,9 @@ def make_test_data_from_release_data(root_path, output_root_path, port):
     validate_directory(test_inputs_dir)
 
     print("Reading test summaries...")
-    id2summaries = get_test_summaries(docset_ids, root_path, port)
+    id2summaries = get_test_summaries(docset_ids, root_path, nlp)
 
-    docs = get_test_inputs(docset_ids, root_path, port)
+    docs = get_test_inputs(docset_ids, root_path, nlp)
 
     for key, summaries in id2summaries.items():
         print(key)
@@ -171,6 +173,8 @@ def make_test_data_from_release_data(root_path, output_root_path, port):
                  "date": datestr,
                  "sentence_id": s,
                  "text": sentence["text"],
+                 "pos": sentence["pos"],
+                 "ne": sentence["ne"],
                  "tokens": sentence["tokens"]})
         
         input_path = os.path.join(
@@ -188,7 +192,7 @@ def make_test_data_from_release_data(root_path, output_root_path, port):
 
 
 
-def get_test_inputs(docset_ids, root_path, port):
+def get_test_inputs(docset_ids, root_path, nlp):
     docs = {}
     for docset_id in docset_ids:
         docset_dir = os.path.join(
@@ -197,7 +201,7 @@ def get_test_inputs(docset_ids, root_path, port):
         input_paths = [os.path.join(docset_dir, fn) 
                        for fn in os.listdir(docset_dir)]
 
-        docset_docs = document_parser.parse_input_docs(input_paths, port)
+        docset_docs = document_parser.parse_input_docs(input_paths, nlp)
         for doc in docset_docs:
             docs[(docset_id, doc["doc_id"])] = doc
 
@@ -216,24 +220,24 @@ def get_docset_ids_from_dir(path):
     assert len(docset_ids) == 30
     return docset_ids
 
-def extract_sds_data(release_data_path, output_dir, port):
+def extract_sds_data(release_data_path, output_dir, nlp=None):
+    if nlp is None:
+        nlp = spacy.load('en', parser=False)
+
     make_train_data_from_release_data(
-        release_data_path, output_dir, port)
+        release_data_path, output_dir, nlp)
     make_test_data_from_release_data(
-        release_data_path, output_dir, port)
+        release_data_path, output_dir, nlp)
 
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--release-data", type=str, required=True)
     parser.add_argument("--output-path", type=str, required=True)
-    parser.add_argument("--corenlp-port", type=int, default=9000)
 
     args = parser.parse_args()
     
-    with simple_cnlp.Session(port=args.corenlp_port) as session: 
-        extract_sds_data(
-            args.release_data, args.output_path, args.corenlp_port)
+    extract_sds_data(args.release_data, args.output_path)
         
 if __name__ == "__main__":
     main()
