@@ -11,7 +11,7 @@ DUC 2002:
 
 To preprocess the DUC 2002 single document data you will also need to download
 additional DUC 2002 test data from the NIST website using the script 
-`data_downloader_scripts/duc2002_test_data_downloader.sh`
+```data_downloader_scripts/duc2002_test_data_downloader.sh```
 
 The usage is 
 
