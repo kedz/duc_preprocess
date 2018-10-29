@@ -5,9 +5,9 @@ See https://duc.nist.gov/data.html for details on this process.
 By email you should receive the following documents from NIST:
 
 DUC 2001:
-  DUC2001_Summarization_Documents.tgz  
+  `DUC2001_Summarization_Documents.tgz` 
 DUC 2002:
-  DUC2002_Summarization_Documents.tgz  
+  `DUC2002_Summarization_Documents.tgz` 
 
 To preprocess the DUC 2002 single document data you will also need to download
 additional DUC 2002 test data from the NIST website using the script 
