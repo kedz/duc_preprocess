@@ -2,7 +2,6 @@ import os
 import tempfile
 import tarfile
 import shutil
-import simple_cnlp
 from .repair import run_repairs
 from .sds import extract_sds_data
 
